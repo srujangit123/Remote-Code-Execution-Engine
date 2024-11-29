@@ -4,7 +4,7 @@ import "time"
 
 // TODO: Is it better to store this as environment variables?
 const (
-	GolangContainerImage = "alpine:latest"
+	GolangContainerImage = "amd64/golang:1.23.3-alpine3.20"
 	cppContainerImage    = "gcc:4.9"
 
 	MAX_EXECUTION_TIME = 20 * time.Second

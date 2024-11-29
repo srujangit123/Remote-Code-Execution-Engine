@@ -199,7 +199,7 @@ func getContainerName(code *Code) string {
 func getLanguageContainerImage(lang string) string {
 	switch lang {
 	case "golang":
-		return GolangCodePath
+		return GolangContainerImage
 	case "cpp":
 		return cppContainerImage
 
