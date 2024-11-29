@@ -2,6 +2,7 @@ package codecontainer
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -62,6 +63,11 @@ func (d *dockerClient) GetContainers(ctx context.Context, opts *container.ListOp
 // TODO: Add Cgroups support
 // TODO: Improve security: drop all the capabilities and use only those that are absolutely necessary.
 func (d *dockerClient) CreateAndStartContainer(ctx context.Context, code *Code) (string, error) {
+	err := createCodeFileHost(code)
+	if err != nil {
+		return "", fmt.Errorf("failed to create the code file: %w", err)
+	}
+
 	res, err := d.client.ContainerCreate(ctx, &container.Config{
 		Cmd:   getLanguageRunCmd(code),
 		Image: getLanguageContainerImage(code.Language),
@@ -103,6 +109,25 @@ func (d *dockerClient) GetContainerOutput(ctx context.Context, code *Code) (stri
 		return "", fmt.Errorf("error reading content from the file: %w", err)
 	}
 	return string(fileContent), nil
+}
+
+func createCodeFileHost(code *Code) error {
+	f, err := os.Create(getCodeFilePath(code))
+	if err != nil {
+		panic(err)
+	}
+
+	data, err := base64.StdEncoding.DecodeString(code.EncodedCode)
+	if err != nil {
+		return fmt.Errorf("failed to decode the code text: %w", err)
+	}
+
+	_, err = f.Write([]byte(data))
+	if err != nil {
+		return fmt.Errorf("failed to write the content to the file: %w", err)
+	}
+
+	return nil
 }
 
 func getHostLanguageCodePath(lang string) string {

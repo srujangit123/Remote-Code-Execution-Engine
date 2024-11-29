@@ -47,44 +47,21 @@ func RegisterRoutes(r *gin.Engine, client codecontainer.ContainerClient) {
 		}
 		fmt.Printf("%+v\n", req)
 
-		// f, err := os.Create("/home/srujan/Documents/code/cpp/uploaded.cpp")
-		// if err != nil {
-		// 	panic(err)
-		// }
-
-		// data, err := base64.StdEncoding.DecodeString(code.Code)
-		// if err != nil {
-		// 	log.Fatal("error:", err)
-		// }
-
-		// fmt.Printf("%q\n", data)
-
-		// _, err = f.Write([]byte(data))
-		// if err != nil {
-		// 	panic(err)
-		// }
-
-		fmt.Println("successfully wrote the content to the file")
-		id, err := client.CreateAndStartContainer(context.Background(), &codecontainer.Code{
+		code := &codecontainer.Code{
 			EncodedCode: req.EncodedCode,
 			Language:    req.Language,
 			FileName:    uuid.New().String(), // without any extension at the end.
-		})
+		}
+
+		fmt.Println("successfully wrote the content to the file")
+		id, err := client.CreateAndStartContainer(context.Background(), code)
 		if err != nil {
 			panic(err)
 		}
 
 		fmt.Println(id)
 
-		// containers, err := dockerC.GetContainers(context.Background(), client, &container.ListOptions{})
-		// if err != nil {
-		// 	panic(err)
-		// }
-		// fmt.Printf("Running containers: %+v\n", containers)
-
-		output, err := codecontainer.GetCodeOutput(context.Background(), &codecontainer.Code{
-			Language: req.Language,
-		})
+		output, err := client.GetContainerOutput(ctx, code)
 		if err != nil {
 			panic(err)
 		}
