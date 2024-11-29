@@ -13,7 +13,7 @@ const (
 	// The server running this will check for every 10 minutes whether there are zombie containers - completed containers and removes them.
 	GarbageCollectionTimeWindow = 10 * time.Minute
 
-	baseCodePath = "/home/srujan/Documents/code/"
+	baseCodePath = "/home/sbharadwajtn/personal/Remote-Code-Execution-Engine/code/"
 	// Make this part of env variables. There should be a setup scripts that adds these values to env variable.
 	CppCodePath    = baseCodePath + "cpp"
 	GolangCodePath = baseCodePath + "golang"

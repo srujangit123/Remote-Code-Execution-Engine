@@ -104,9 +104,20 @@ func (d *dockerClient) FreeUpZombieContainers(ctx context.Context) error {
 	return nil
 }
 
+func getOutputPathHost(code *Code) string {
+	var codeDirectoryPath string
+	switch code.Language {
+	case "cpp":
+		codeDirectoryPath = CppCodePath
+	case "golang":
+		codeDirectoryPath = GolangCodePath
+	}
+	return filepath.Join(codeDirectoryPath, code.FileName+".out")
+}
+
 // TODO: Need to stop the user from printing infinite times - use cgroup?
 func (d *dockerClient) GetContainerOutput(ctx context.Context, code *Code) (string, error) {
-	codeOutputPath := getCodeFilePath(code) + ".out"
+	codeOutputPath := getOutputPathHost(code)
 	f, err := os.Open(codeOutputPath)
 	if err != nil {
 		return "", fmt.Errorf("error while opening the file: %w", err)
@@ -121,7 +132,7 @@ func (d *dockerClient) GetContainerOutput(ctx context.Context, code *Code) (stri
 }
 
 func (d *dockerClient) createCodeFileHost(code *Code) error {
-	codeFilePath := getCodeFilePath(code)
+	codeFilePath := getCodeFilePathHost(code)
 	f, err := os.Create(codeFilePath)
 	if err != nil {
 		panic(err)
@@ -188,10 +199,25 @@ func getCodeFilePath(code *Code) string {
 	return filepath.Join(TargetMountPath, code.FileName+"."+fileExtension)
 }
 
+func getCodeFilePathHost(code *Code) string {
+	var fileExtension string
+	var codeDirectoryPath string
+	switch code.Language {
+	case "cpp":
+		fileExtension = "cpp"
+		codeDirectoryPath = CppCodePath
+	case "golang":
+		fileExtension = "go"
+		codeDirectoryPath = GolangCodePath
+	}
+	return filepath.Join(codeDirectoryPath, code.FileName+"."+fileExtension)
+}
+
+// This is for the container
 func getCodeCompilationCmd(code *Code) string {
 	switch code.Language {
 	case "cpp":
-		return fmt.Sprintf("g++ %s", getCodeFilePath(code))
+		return fmt.Sprintf("g++ %s -o %s", getCodeFilePath(code), getExecutablePath(code))
 	case "golang":
 		return fmt.Sprintf("go build -o %s %s", getExecutablePath(code), getCodeFilePath(code))
 	}
@@ -199,12 +225,12 @@ func getCodeCompilationCmd(code *Code) string {
 }
 
 func getLanguageRunCmd(code *Code) []string {
-	codeFilePath := getCodeFilePath(code)
+	// codeFilePath := getCodeFilePath(code)
 	executablePath := getExecutablePath(code)
 	codeCompilationCmd := getCodeCompilationCmd(code)
 
 	return []string{
 		"sh", "-c",
-		fmt.Sprintf("%s; .%s > %s.out", codeCompilationCmd, executablePath, codeFilePath),
+		fmt.Sprintf("%s; .%s > %s.out;", codeCompilationCmd, executablePath, executablePath),
 	}
 }
