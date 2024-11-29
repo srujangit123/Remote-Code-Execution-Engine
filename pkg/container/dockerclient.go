@@ -122,6 +122,7 @@ func (d *dockerClient) GetContainerOutput(ctx context.Context, code *Code) (stri
 	codeOutputPath := getOutputPathHost(code)
 	// file may not be created instantly as the code would still be running
 	// Loop until the file is created
+	// TODO: Instead of Probing, can we use inotify?
 	retries := 0
 	for {
 		_, err := os.Stat(getOutputPathHost(code))
