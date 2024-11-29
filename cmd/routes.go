@@ -33,17 +33,13 @@ func RegisterRoutes(r *gin.Engine, client codecontainer.ContainerClient) {
 			zap.String("FileName", code.FileName),
 		)
 
-		id, err := client.CreateAndStartContainer(context.Background(), code)
+		_, err := client.CreateAndStartContainer(context.Background(), code)
 		if err != nil {
 			logger.Error("container create and start failed",
 				zap.Error(err),
 			)
 			panic(err)
 		}
-
-		logger.Info("container created",
-			zap.String("Container ID", id),
-		)
 
 		output, err := client.GetContainerOutput(ctx, code)
 		if err != nil {

@@ -69,6 +69,7 @@ func (d *dockerClient) CreateAndStartContainer(ctx context.Context, code *Code) 
 	if err != nil {
 		return "", fmt.Errorf("failed to create the code file: %w", err)
 	}
+	d.logger.Info("successfully created the code file in the host")
 
 	res, err := d.client.ContainerCreate(ctx, &container.Config{
 		Cmd:   getLanguageRunCmd(code),
@@ -87,9 +88,13 @@ func (d *dockerClient) CreateAndStartContainer(ctx context.Context, code *Code) 
 		return "", fmt.Errorf("failed to create a container: %w", err)
 	}
 
+	d.logger.Info("created the container, waiting for the container to start")
 	if err = d.client.ContainerStart(ctx, res.ID, container.StartOptions{}); err != nil {
 		return res.ID, fmt.Errorf("failed to start the container after creating: %w", err)
 	}
+	d.logger.Info("successfully started the container",
+		zap.String("container ID", res.ID),
+	)
 
 	return res.ID, nil
 }
