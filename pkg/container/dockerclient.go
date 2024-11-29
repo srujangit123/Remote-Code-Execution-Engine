@@ -65,7 +65,7 @@ func (d *dockerClient) GetContainers(ctx context.Context, opts *container.ListOp
 // TODO: Add Cgroups support
 // TODO: Improve security: drop all the capabilities and use only those that are absolutely necessary.
 func (d *dockerClient) CreateAndStartContainer(ctx context.Context, code *Code) (string, error) {
-	err := createCodeFileHost(code)
+	err := d.createCodeFileHost(code)
 	if err != nil {
 		return "", fmt.Errorf("failed to create the code file: %w", err)
 	}
@@ -106,11 +106,13 @@ func (d *dockerClient) FreeUpZombieContainers(ctx context.Context) error {
 
 // TODO: Need to stop the user from printing infinite times - use cgroup?
 func (d *dockerClient) GetContainerOutput(ctx context.Context, code *Code) (string, error) {
-	f, err := os.Open(getCodeFilePath(code) + ".out")
+	codeOutputPath := getCodeFilePath(code) + ".out"
+	f, err := os.Open(codeOutputPath)
 	if err != nil {
 		return "", fmt.Errorf("error while opening the file: %w", err)
 	}
 	defer f.Close()
+
 	fileContent, err := io.ReadAll(f)
 	if err != nil {
 		return "", fmt.Errorf("error reading content from the file: %w", err)
@@ -118,8 +120,9 @@ func (d *dockerClient) GetContainerOutput(ctx context.Context, code *Code) (stri
 	return string(fileContent), nil
 }
 
-func createCodeFileHost(code *Code) error {
-	f, err := os.Create(getCodeFilePath(code))
+func (d *dockerClient) createCodeFileHost(code *Code) error {
+	codeFilePath := getCodeFilePath(code)
+	f, err := os.Create(codeFilePath)
 	if err != nil {
 		panic(err)
 	}
@@ -129,10 +132,14 @@ func createCodeFileHost(code *Code) error {
 		return fmt.Errorf("failed to decode the code text: %w", err)
 	}
 
-	_, err = f.Write([]byte(data))
+	n, err := f.Write([]byte(data))
 	if err != nil {
 		return fmt.Errorf("failed to write the content to the file: %w", err)
 	}
+	d.logger.Info("wrote the code content to the file",
+		zap.String("file path", codeFilePath),
+		zap.Int("bytes", n),
+	)
 
 	return nil
 }
