@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -117,6 +118,8 @@ func getOutputPathHost(code *Code) string {
 
 // TODO: Need to stop the user from printing infinite times - use cgroup?
 func (d *dockerClient) GetContainerOutput(ctx context.Context, code *Code) (string, error) {
+	// file may not be created instantly as the code would still be running
+	time.Sleep(5 * time.Second)
 	codeOutputPath := getOutputPathHost(code)
 	f, err := os.Open(codeOutputPath)
 	if err != nil {
