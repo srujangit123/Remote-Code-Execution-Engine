@@ -257,6 +257,6 @@ func getLanguageRunCmd(code *Code) []string {
 
 	return []string{
 		"sh", "-c",
-		fmt.Sprintf("%s; .%s > %s.out;", codeCompilationCmd, executablePath, executablePath),
+		fmt.Sprintf("%s && %s > %s.out", codeCompilationCmd, executablePath, executablePath),
 	}
 }
