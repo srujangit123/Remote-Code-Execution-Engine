@@ -5,3 +5,4 @@
 4. Clean the zombie containers to avoid memory leaks
 5. Do pprof
 6. Perf improvements using pprof to reduce the overall latency
+7. Scope this repo only to backend and create a frontend in a different repo.

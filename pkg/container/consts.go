@@ -1,4 +1,4 @@
-package docker
+package codecontainer
 
 import "time"
 
@@ -13,7 +13,13 @@ const (
 	// The server running this will check for every 10 minutes whether there are zombie containers - completed containers and removes them.
 	GarbageCollectionTimeWindow = 10 * time.Minute
 
-	CppCodePath = "/home/srujan/Documents/code/cpp"
+	baseCodePath = "/home/srujan/Documents/code/"
+	// Make this part of env variables. There should be a setup scripts that adds these values to env variable.
+	CppCodePath    = baseCodePath + "cpp"
+	GolangCodePath = baseCodePath + "golang"
 
-	GolangCodePath = "/home/srujan/Documents/code/golang"
+	// Path where the code files are mounted.
+	TargetMountPath = "/container/code"
+
+	BaseContainerCodeExecutablePath = TargetMountPath
 )
