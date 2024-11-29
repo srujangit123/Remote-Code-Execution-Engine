@@ -22,4 +22,7 @@ const (
 	TargetMountPath = "/container/code"
 
 	BaseContainerCodeExecutablePath = TargetMountPath
+
+	// How many times we should probe to see if there's an output file or not
+	MAX_RETRIES = 10
 )

@@ -122,6 +122,7 @@ func (d *dockerClient) GetContainerOutput(ctx context.Context, code *Code) (stri
 	codeOutputPath := getOutputPathHost(code)
 	// file may not be created instantly as the code would still be running
 	// Loop until the file is created
+	retries := 0
 	for {
 		_, err := os.Stat(getOutputPathHost(code))
 		if err != nil {
@@ -134,8 +135,12 @@ func (d *dockerClient) GetContainerOutput(ctx context.Context, code *Code) (stri
 		} else {
 			break
 		}
+		if retries == MAX_RETRIES {
+			break
+		}
 		// TODO: Remove the case of infinite for loop
 		time.Sleep(500 * time.Millisecond)
+		retries += 1
 	}
 
 	f, err := os.Open(codeOutputPath)
