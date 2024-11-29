@@ -1,18 +1,29 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"net/http"
 	codecontainer "remote-code-engine/pkg/container"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
+
+var logger *zap.Logger
+
+const (
+	ADDR = ":9000"
+)
+
+func init() {
+	logger, _ = zap.NewProduction()
+}
 
 func StartServer() error {
 	r := gin.Default()
+	logger.Info("starting the server",
+		zap.String("Address", ADDR),
+	)
 
 	server := &http.Server{
 		Addr:         ":9000",
@@ -21,8 +32,11 @@ func StartServer() error {
 		WriteTimeout: 10 * time.Second,
 	}
 
-	cli, err := codecontainer.NewDockerClient(nil)
+	cli, err := codecontainer.NewDockerClient(nil, logger)
 	if err != nil {
+		logger.Error("failed to create a docker client",
+			zap.Error(err),
+		)
 		panic(err)
 	}
 
@@ -31,48 +45,16 @@ func StartServer() error {
 }
 
 type Request struct {
-	EncodedCode string `json: "code"`
-	Language    string `json: "language"`
+	EncodedCode string `json:"code"`
+	Language    string `json:"language"`
 }
 
 type Response struct {
-	Output string `json: "output"`
-}
-
-func RegisterRoutes(r *gin.Engine, client codecontainer.ContainerClient) {
-	r.POST("/api/v1/submit", func(ctx *gin.Context) {
-		var req Request
-		if err := ctx.BindJSON(&req); err != nil {
-			return
-		}
-		fmt.Printf("%+v\n", req)
-
-		code := &codecontainer.Code{
-			EncodedCode: req.EncodedCode,
-			Language:    req.Language,
-			FileName:    uuid.New().String(), // without any extension at the end.
-		}
-
-		fmt.Println("successfully wrote the content to the file")
-		id, err := client.CreateAndStartContainer(context.Background(), code)
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Println(id)
-
-		output, err := client.GetContainerOutput(ctx, code)
-		if err != nil {
-			panic(err)
-		}
-
-		ctx.JSON(http.StatusOK, Response{
-			Output: output,
-		})
-	})
+	Output string `json:"output"`
 }
 
 func main() {
+	defer logger.Sync()
 	StartServer()
 }
 

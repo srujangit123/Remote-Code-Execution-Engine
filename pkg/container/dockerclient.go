@@ -12,14 +12,16 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type dockerClient struct {
 	ContainerClient
 	client *client.Client
+	logger *zap.Logger
 }
 
-func NewDockerClient(opts *client.Opt) (ContainerClient, error) {
+func NewDockerClient(opts *client.Opt, logger *zap.Logger) (ContainerClient, error) {
 	var cli *client.Client
 	var err error
 
@@ -35,6 +37,7 @@ func NewDockerClient(opts *client.Opt) (ContainerClient, error) {
 
 	return &dockerClient{
 		client: cli,
+		logger: logger,
 	}, nil
 }
 
@@ -52,7 +55,6 @@ func (d *dockerClient) GetContainers(ctx context.Context, opts *container.ListOp
 			ID:     ctr.ID,
 			Status: ctr.Status,
 		}
-
 		containersList = append(containersList, container)
 	}
 
