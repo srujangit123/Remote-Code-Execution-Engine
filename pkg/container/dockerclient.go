@@ -3,6 +3,7 @@ package codecontainer
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -118,9 +119,25 @@ func getOutputPathHost(code *Code) string {
 
 // TODO: Need to stop the user from printing infinite times - use cgroup?
 func (d *dockerClient) GetContainerOutput(ctx context.Context, code *Code) (string, error) {
-	// file may not be created instantly as the code would still be running
-	time.Sleep(5 * time.Second)
 	codeOutputPath := getOutputPathHost(code)
+	// file may not be created instantly as the code would still be running
+	// Loop until the file is created
+	for {
+		_, err := os.Stat(getOutputPathHost(code))
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				d.logger.Debug("file doesn't exist yet. Waiting...")
+			} else {
+				d.logger.Error("error checking file:", zap.Error(err))
+				break
+			}
+		} else {
+			break
+		}
+		// TODO: Remove the case of infinite for loop
+		time.Sleep(500 * time.Millisecond)
+	}
+
 	f, err := os.Open(codeOutputPath)
 	if err != nil {
 		return "", fmt.Errorf("error while opening the file: %w", err)
