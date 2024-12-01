@@ -64,6 +64,9 @@ func (d *dockerClient) GetContainers(ctx context.Context, opts *container.ListOp
 	return containersList, nil
 }
 
+// 1. Use volume mounts. Mount a specific file - the upload file. Then run the container with a custom command.
+// TODO: Add Cgroups support
+// TODO: Improve security: drop all the capabilities and use only those that are absolutely necessary.
 func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, error) {
 	err := d.createCodeFileHost(code)
 	if err != nil {
@@ -122,45 +125,6 @@ func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, err
 	return stdoutBuf.String() + "\n" + stderrBuf.String(), nil
 }
 
-// 1. Use volume mounts. Mount a specific file - the upload file. Then run the container with a custom command.
-// TODO: Add Cgroups support
-// TODO: Improve security: drop all the capabilities and use only those that are absolutely necessary.
-func (d *dockerClient) CreateAndStartContainer(ctx context.Context, code *Code) (string, error) {
-	err := d.createCodeFileHost(code)
-	if err != nil {
-		return "", fmt.Errorf("failed to create the code file: %w", err)
-	}
-	d.logger.Info("successfully created the code file in the host")
-
-	res, err := d.client.ContainerCreate(ctx, &container.Config{
-		Cmd:   getLanguageRunCmd(code),
-		Image: getLanguageContainerImage(code.Language),
-	}, &container.HostConfig{
-		Mounts: []mount.Mount{
-			{
-				Type:   mount.TypeBind,
-				Source: getHostLanguageCodePath(code.Language),
-				Target: TargetMountPath,
-			},
-		},
-	}, nil, nil, getContainerName(code))
-
-	if err != nil {
-		return "", fmt.Errorf("failed to create a container: %w", err)
-	}
-
-	d.logger.Info("created the container, waiting for the container to start")
-	if err = d.client.ContainerStart(ctx, res.ID, container.StartOptions{}); err != nil {
-		return res.ID, fmt.Errorf("failed to start the container after creating: %w", err)
-	}
-	d.logger.Info("successfully started the container",
-		zap.String("container ID", res.ID),
-	)
-
-	return res.ID, nil
-}
-
-// TODO: Implementation. Just delete all the containers that are in deleted/exited state to avoid memory saturation issues in the host.
 func (d *dockerClient) FreeUpZombieContainers(ctx context.Context) error {
 	for {
 		pruneResults, err := d.client.ContainersPrune(ctx, filters.Args{})
