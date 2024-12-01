@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -125,6 +124,41 @@ func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, err
 	return stdoutBuf.String() + "\n" + stderrBuf.String(), nil
 }
 
+func deleteStaleFiles(dir string, logger *zap.Logger) error {
+	now := time.Now()
+	threshold := now.Add(-5 * time.Minute)
+
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		logger.Error("failed to read the directory", zap.String("directory name", dir))
+		return err
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		fileInfo, err := file.Info()
+		if err != nil {
+			logger.Debug("failed to get file info of the file", zap.String("file name", file.Name()))
+			continue
+		}
+		modTime := fileInfo.ModTime()
+
+		if modTime.Before(threshold) {
+			filePath := filepath.Join(dir, file.Name())
+			err := os.Remove(filePath)
+			if err != nil {
+				logger.Error("error deleting file", zap.String("file name", filePath))
+			} else {
+				logger.Debug("deleted the file", zap.String("file name", filePath))
+			}
+		}
+	}
+	return nil
+}
+
 func (d *dockerClient) FreeUpZombieContainers(ctx context.Context) error {
 	for {
 		pruneResults, err := d.client.ContainersPrune(ctx, filters.Args{})
@@ -137,6 +171,9 @@ func (d *dockerClient) FreeUpZombieContainers(ctx context.Context) error {
 		d.logger.Info("successfully pruned the containers:",
 			zap.Int("#Pruned containers", len(pruneResults.ContainersDeleted)),
 		)
+
+		deleteStaleFiles(CppCodePath, d.logger)
+		deleteStaleFiles(GolangCodePath, d.logger)
 
 		time.Sleep(5 * time.Minute)
 	}
@@ -177,7 +214,7 @@ func getHostLanguageCodePath(lang string) string {
 }
 
 func getContainerName(code *Code) string {
-	return code.FileName + "-" + uuid.New().String()
+	return code.Language + "_" + code.FileName
 }
 
 // Only supports Golang and CPP for now. TODO: Add python, java, etc.
