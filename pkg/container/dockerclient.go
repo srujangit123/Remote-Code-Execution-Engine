@@ -240,23 +240,22 @@ func getCodeFilePathHost(code *Code) string {
 }
 
 // This is for the container
-func getCodeCompilationCmd(code *Code) string {
-	switch code.Language {
-	case "cpp":
-		return fmt.Sprintf("g++ %s -o %s", getCodeFilePath(code), getExecutablePath(code))
-	case "golang":
-		return fmt.Sprintf("go build -o %s %s", getExecutablePath(code), getCodeFilePath(code))
-	}
-	return ""
-}
+// func getCodeCompilationCmd(code *Code) string {
+// 	switch code.Language {
+// 	case "cpp":
+// 		return fmt.Sprintf("g++ %s -o %s", getCodeFilePath(code), getExecutablePath(code))
+// 	case "golang":
+// 		return fmt.Sprintf("go build -o %s %s", getExecutablePath(code), getCodeFilePath(code))
+// 	}
+// 	return ""
+// }
 
 func getLanguageRunCmd(code *Code) []string {
-	// codeFilePath := getCodeFilePath(code)
-	executablePath := getExecutablePath(code)
-	codeCompilationCmd := getCodeCompilationCmd(code)
+	codeFilePath := getCodeFilePath(code)
+	outputPath := fmt.Sprintf("%s.out", getExecutablePath(code))
 
 	return []string{
 		"sh", "-c",
-		fmt.Sprintf("%s && %s > %s.out", codeCompilationCmd, executablePath, executablePath),
+		fmt.Sprintf("ls; /usr/bin/run-code.sh %s %s %s", code.Language, codeFilePath, outputPath),
 	}
 }
