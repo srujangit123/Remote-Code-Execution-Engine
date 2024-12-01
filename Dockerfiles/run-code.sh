@@ -36,11 +36,26 @@ run_cpp() {
 }
 
 run_go() {
+    # First, compile the Go program to check for compile-time errors
+    # go build "$source_file" -o "$output_file"_exe 2> "$output_file"
     go run "$source_file" > "$output_file" 2>&1
 
+    # Check if compilation failed
+    # if [ $? -ne 0 ]; then
+    #     echo "Go compilation failed. Check $output_file" >> "$output_file"
+    #     exit 1
+    # fi
+
+    # Now, run the Go program if compilation is successful
+    # ./"$output_file"_exe > "$output_file" 2>&1
+
+    # Check for runtime errors
     if [ $? -ne 0 ]; then
         echo "Runtime error occurred while running the Go program." >> "$output_file"
     fi
+
+    # Clean up the compiled executable
+    # rm -f "$output_file"_exe
 }
 
 # Check the programming language and call the appropriate function

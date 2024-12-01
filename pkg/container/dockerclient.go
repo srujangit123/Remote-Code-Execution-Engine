@@ -3,16 +3,14 @@ package codecontainer
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
+	"github.com/fsnotify/fsnotify"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -106,7 +104,7 @@ func (d *dockerClient) FreeUpZombieContainers(ctx context.Context) error {
 	return nil
 }
 
-func getOutputPathHost(code *Code) string {
+func getDirectoryPathHost(code *Code) string {
 	var codeDirectoryPath string
 	switch code.Language {
 	case "cpp":
@@ -114,46 +112,65 @@ func getOutputPathHost(code *Code) string {
 	case "golang":
 		codeDirectoryPath = GolangCodePath
 	}
-	return filepath.Join(codeDirectoryPath, code.FileName+".out")
+	return codeDirectoryPath
+}
+
+func getOutputPathHost(code *Code) string {
+	return filepath.Join(getDirectoryPathHost(code), code.FileName+".out")
 }
 
 // TODO: Need to stop the user from printing infinite times - use cgroup?
 func (d *dockerClient) GetContainerOutput(ctx context.Context, code *Code) (string, error) {
 	codeOutputPath := getOutputPathHost(code)
-	// file may not be created instantly as the code would still be running
-	// Loop until the file is created
-	// TODO: Instead of Probing, can we use inotify?
-	retries := 0
+
+	// TODO: Add a unique directory for each container so that watcher doesn't need to watch all the events
+	dirPath := getDirectoryPathHost(code)
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return "", fmt.Errorf("failed to initialize fs watcher: %w", err)
+	}
+	defer watcher.Close()
+
+	err = watcher.Add(dirPath)
+	if err != nil {
+		return "", fmt.Errorf("error watching directory: %w", err)
+	}
+
+	var fileModified bool
+
 	for {
-		_, err := os.Stat(getOutputPathHost(code))
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				d.logger.Debug("file doesn't exist yet. Waiting...")
-			} else {
-				d.logger.Error("error checking file:", zap.Error(err))
-				break
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("context canceled while waiting for file")
+		case event := <-watcher.Events:
+			if event.Op&fsnotify.Create == fsnotify.Create {
+				if event.Name == codeOutputPath {
+					d.logger.Debug("file created, waiting for modification...")
+					fileModified = false // File is created, but we want to make sure it's written to
+				}
 			}
-		} else {
+			if event.Op&fsnotify.Write == fsnotify.Write && event.Name == codeOutputPath {
+				d.logger.Debug("file modified, checking for stability...")
+				fileModified = true
+			}
+
+		case err := <-watcher.Errors:
+			return "", fmt.Errorf("file watcher error: %w", err)
+		}
+		if fileModified {
+			d.logger.Debug("file ready, reading content")
 			break
 		}
-		if retries == MAX_RETRIES {
-			break
-		}
-		// TODO: Remove the case of infinite for loop
-		time.Sleep(500 * time.Millisecond)
-		retries += 1
 	}
 
-	f, err := os.Open(codeOutputPath)
+	// Open the file and read its content
+	fileContent, err := os.ReadFile(codeOutputPath)
 	if err != nil {
-		return "", fmt.Errorf("error while opening the file: %w", err)
+		return "", fmt.Errorf("failed to read the output file: %w", err)
 	}
-	defer f.Close()
 
-	fileContent, err := io.ReadAll(f)
-	if err != nil {
-		return "", fmt.Errorf("error reading content from the file: %w", err)
-	}
+	d.logger.Info("output", zap.String("output", string(fileContent)))
 	return string(fileContent), nil
 }
 

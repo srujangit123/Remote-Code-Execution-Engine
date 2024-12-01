@@ -1,4 +1,12 @@
-FROM amd64/golang:1.23.3-alpine3.20
+FROM alpine:latest
+
+RUN apk update && apk add --no-cache \
+    go \
+    libc-dev \
+    bash
+
+ENV GOPATH=/go
+ENV PATH=$GOPATH/bin:/usr/local/go/bin:$PATH
 
 COPY run-code.sh /usr/bin/
 RUN chmod +x /usr/bin/run-code.sh
