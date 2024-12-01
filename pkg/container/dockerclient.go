@@ -1,16 +1,19 @@
 package codecontainer
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
-	"github.com/fsnotify/fsnotify"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -61,6 +64,64 @@ func (d *dockerClient) GetContainers(ctx context.Context, opts *container.ListOp
 	return containersList, nil
 }
 
+func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, error) {
+	err := d.createCodeFileHost(code)
+	if err != nil {
+		return "", fmt.Errorf("failed to create the code file: %w", err)
+	}
+	d.logger.Info("successfully created the code file in the host")
+
+	res, err := d.client.ContainerCreate(ctx, &container.Config{
+		Cmd:   getLanguageRunCmd(code),
+		Image: getLanguageContainerImage(code.Language),
+	}, &container.HostConfig{
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: getHostLanguageCodePath(code.Language),
+				Target: TargetMountPath,
+			},
+		},
+	}, nil, nil, getContainerName(code))
+
+	if err != nil {
+		return "", fmt.Errorf("failed to create a container: %w", err)
+	}
+
+	d.logger.Info("created the container, waiting for the container to start")
+	if err = d.client.ContainerStart(ctx, res.ID, container.StartOptions{}); err != nil {
+		return res.ID, fmt.Errorf("failed to start the container after creating: %w", err)
+	}
+
+	d.logger.Info("container started, waiting for the container to exit")
+	statusCh, errCh := d.client.ContainerWait(ctx, res.ID, container.WaitConditionNotRunning)
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return "", fmt.Errorf("failed to get the container logs: %w", err)
+		}
+	case status := <-statusCh:
+		d.logger.Info("container exited", zap.Any("status", status))
+	}
+
+	logs, err := d.client.ContainerLogs(ctx, res.ID, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     false,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to read container logs: %w", err)
+	}
+	var stdoutBuf, stderrBuf bytes.Buffer
+	_, err = stdcopy.StdCopy(&stdoutBuf, &stderrBuf, logs)
+	if err != nil {
+		return "", fmt.Errorf("error processing the logs: %w", err)
+	}
+
+	return stdoutBuf.String() + "\n" + stderrBuf.String(), nil
+}
+
 // 1. Use volume mounts. Mount a specific file - the upload file. Then run the container with a custom command.
 // TODO: Add Cgroups support
 // TODO: Improve security: drop all the capabilities and use only those that are absolutely necessary.
@@ -101,77 +162,20 @@ func (d *dockerClient) CreateAndStartContainer(ctx context.Context, code *Code) 
 
 // TODO: Implementation. Just delete all the containers that are in deleted/exited state to avoid memory saturation issues in the host.
 func (d *dockerClient) FreeUpZombieContainers(ctx context.Context) error {
-	return nil
-}
-
-func getDirectoryPathHost(code *Code) string {
-	var codeDirectoryPath string
-	switch code.Language {
-	case "cpp":
-		codeDirectoryPath = CppCodePath
-	case "golang":
-		codeDirectoryPath = GolangCodePath
-	}
-	return codeDirectoryPath
-}
-
-func getOutputPathHost(code *Code) string {
-	return filepath.Join(getDirectoryPathHost(code), code.FileName+".out")
-}
-
-// TODO: Need to stop the user from printing infinite times - use cgroup?
-func (d *dockerClient) GetContainerOutput(ctx context.Context, code *Code) (string, error) {
-	codeOutputPath := getOutputPathHost(code)
-
-	// TODO: Add a unique directory for each container so that watcher doesn't need to watch all the events
-	dirPath := getDirectoryPathHost(code)
-
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return "", fmt.Errorf("failed to initialize fs watcher: %w", err)
-	}
-	defer watcher.Close()
-
-	err = watcher.Add(dirPath)
-	if err != nil {
-		return "", fmt.Errorf("error watching directory: %w", err)
-	}
-
-	var fileModified bool
-
 	for {
-		select {
-		case <-ctx.Done():
-			return "", fmt.Errorf("context canceled while waiting for file")
-		case event := <-watcher.Events:
-			if event.Op&fsnotify.Create == fsnotify.Create {
-				if event.Name == codeOutputPath {
-					d.logger.Debug("file created, waiting for modification...")
-					fileModified = false // File is created, but we want to make sure it's written to
-				}
-			}
-			if event.Op&fsnotify.Write == fsnotify.Write && event.Name == codeOutputPath {
-				d.logger.Debug("file modified, checking for stability...")
-				fileModified = true
-			}
-
-		case err := <-watcher.Errors:
-			return "", fmt.Errorf("file watcher error: %w", err)
+		pruneResults, err := d.client.ContainersPrune(ctx, filters.Args{})
+		if err != nil {
+			d.logger.Error("failed to prune containers",
+				zap.Error(err),
+			)
 		}
-		if fileModified {
-			d.logger.Debug("file ready, reading content")
-			break
-		}
-	}
 
-	// Open the file and read its content
-	fileContent, err := os.ReadFile(codeOutputPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read the output file: %w", err)
-	}
+		d.logger.Info("successfully pruned the containers:",
+			zap.Int("#Pruned containers", len(pruneResults.ContainersDeleted)),
+		)
 
-	d.logger.Info("output", zap.String("output", string(fileContent)))
-	return string(fileContent), nil
+		time.Sleep(5 * time.Minute)
+	}
 }
 
 func (d *dockerClient) createCodeFileHost(code *Code) error {
@@ -223,12 +227,6 @@ func getLanguageContainerImage(lang string) string {
 	default:
 		return ""
 	}
-
-}
-
-func getExecutablePath(code *Code) string {
-	// Assumption is that file name doesn't contain extension name
-	return filepath.Join(BaseContainerCodeExecutablePath, code.FileName)
 }
 
 func getCodeFilePath(code *Code) string {
@@ -256,23 +254,11 @@ func getCodeFilePathHost(code *Code) string {
 	return filepath.Join(codeDirectoryPath, code.FileName+"."+fileExtension)
 }
 
-// This is for the container
-// func getCodeCompilationCmd(code *Code) string {
-// 	switch code.Language {
-// 	case "cpp":
-// 		return fmt.Sprintf("g++ %s -o %s", getCodeFilePath(code), getExecutablePath(code))
-// 	case "golang":
-// 		return fmt.Sprintf("go build -o %s %s", getExecutablePath(code), getCodeFilePath(code))
-// 	}
-// 	return ""
-// }
-
 func getLanguageRunCmd(code *Code) []string {
 	codeFilePath := getCodeFilePath(code)
-	outputPath := fmt.Sprintf("%s.out", getExecutablePath(code))
 
 	return []string{
 		"sh", "-c",
-		fmt.Sprintf("ls; /usr/bin/run-code.sh %s %s %s", code.Language, codeFilePath, outputPath),
+		fmt.Sprintf("/usr/bin/run-code.sh %s %s", code.Language, codeFilePath),
 	}
 }

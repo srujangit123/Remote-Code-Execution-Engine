@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	codecontainer "remote-code-engine/pkg/container"
 	"time"
@@ -19,7 +20,7 @@ func init() {
 	logger, _ = zap.NewProduction()
 }
 
-func StartServer() error {
+func StartServer(cli codecontainer.ContainerClient) error {
 	r := gin.Default()
 	logger.Info("starting the server",
 		zap.String("Address", ADDR),
@@ -29,15 +30,7 @@ func StartServer() error {
 		Addr:         ":9000",
 		Handler:      r,
 		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-	}
-
-	cli, err := codecontainer.NewDockerClient(nil, logger)
-	if err != nil {
-		logger.Error("failed to create a docker client",
-			zap.Error(err),
-		)
-		panic(err)
+		WriteTimeout: 60 * time.Second,
 	}
 
 	RegisterRoutes(r, cli)
@@ -55,7 +48,16 @@ type Response struct {
 
 func main() {
 	defer logger.Sync()
-	StartServer()
-}
 
-// We will convert the whole code into base64 string along with the language and pass these two things to the server.
+	cli, err := codecontainer.NewDockerClient(nil, logger)
+	if err != nil {
+		logger.Error("failed to create a docker client",
+			zap.Error(err),
+		)
+		panic(err)
+	}
+
+	go cli.FreeUpZombieContainers(context.Background())
+
+	StartServer(cli)
+}

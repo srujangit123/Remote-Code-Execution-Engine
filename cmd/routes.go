@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"net/http"
 	codecontainer "remote-code-engine/pkg/container"
 
@@ -33,23 +32,13 @@ func RegisterRoutes(r *gin.Engine, client codecontainer.ContainerClient) {
 			zap.String("FileName", code.FileName),
 		)
 
-		_, err := client.CreateAndStartContainer(context.Background(), code)
+		output, err := client.ExecuteCode(ctx, code)
 		if err != nil {
-			logger.Error("container create and start failed",
-				zap.Error(err),
-			)
-			panic(err)
+			logger.Error("Error executing code", zap.Error(err))
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to execute code"})
 		}
 
-		output, err := client.GetContainerOutput(ctx, code)
-		if err != nil {
-			logger.Error("failed to get code output",
-				zap.Error(err),
-			)
-			panic(err)
-		}
-
-		logger.Info("requested completed")
+		logger.Info("request completed")
 		ctx.JSON(http.StatusOK, Response{
 			Output: output,
 		})

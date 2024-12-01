@@ -23,6 +23,7 @@ type ContainerClient interface {
 	GetContainerOutput(ctx context.Context, code *Code) (string, error)
 	FreeUpZombieContainers(ctx context.Context) error
 
+	ExecuteCode(ctx context.Context, code *Code) (string, error)
 	// TODO: Is this even needed?
 	GetContainers(ctx context.Context, opts *container.ListOptions) ([]Container, error) // Remove list options if you want some other container type other than docker
 }
