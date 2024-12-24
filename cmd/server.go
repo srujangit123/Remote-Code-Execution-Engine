@@ -48,7 +48,7 @@ type Response struct {
 
 func main() {
 	defer logger.Sync()
-
+	_ = ParseFlags()
 	cli, err := codecontainer.NewDockerClient(nil, logger)
 	if err != nil {
 		logger.Error("failed to create a docker client",

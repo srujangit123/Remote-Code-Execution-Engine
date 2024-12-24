@@ -1,0 +1,18 @@
+arm64:
+  - name: "cpp"
+    image: "cpp_arm64:latest"
+  - name: "python"
+    image: "<python_image_link>"
+  - name: "java"
+    image: "<java_image_link>"
+  - name: "golang"
+    image: "golang_arm64:latest"
+x86_64:
+  - name: "cpp"
+    image: "<cpp_image_link>"
+  - name: "python"
+    image: "<python_image_link>"
+  - name: "java"
+    image: "<java_image_link>"
+  - name: "golang"
+    image: "<golang_image_link>"
