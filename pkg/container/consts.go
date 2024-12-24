@@ -5,7 +5,7 @@ import "time"
 // TODO: Is it better to store this as environment variables?
 const (
 	GolangContainerImage = "rce-golang:latest"
-	cppContainerImage    = "rce-cpp:latest"
+	cppContainerImage    = "arm64/cpp:latest"
 
 	MAX_EXECUTION_TIME = 20 * time.Second
 	MAX_SLEEP_TIME     = 400 * time.Second
@@ -13,7 +13,7 @@ const (
 	// The server running this will check for every 10 minutes whether there are zombie containers - completed containers and removes them.
 	GarbageCollectionTimeWindow = 10 * time.Minute
 
-	baseCodePath = "/home/srujan/Documents/code/"
+	baseCodePath = "/Users/sbharadwaj/Documents/repos/code/"
 	// Make this part of env variables. There should be a setup scripts that adds these values to env variable.
 	CppCodePath    = baseCodePath + "cpp"
 	GolangCodePath = baseCodePath + "golang"
