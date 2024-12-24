@@ -1,18 +1,14 @@
 arm64:
-  - name: "cpp"
+  cpp:
+    extension: ".cpp"
     image: "cpp_arm64:latest"
-  - name: "python"
-    image: "<python_image_link>"
-  - name: "java"
-    image: "<java_image_link>"
-  - name: "golang"
+  golang:
+    extension: ".go"
     image: "golang_arm64:latest"
 x86_64:
-  - name: "cpp"
-    image: "<cpp_image_link>"
-  - name: "python"
-    image: "<python_image_link>"
-  - name: "java"
-    image: "<java_image_link>"
-  - name: "golang"
-    image: "<golang_image_link>"
+  cpp: 
+    extension: ".cpp"
+    image: "cpp_x86_64:latest"
+  golang:
+    extension: ".go"
+    image: "golang_x86_64:latest"

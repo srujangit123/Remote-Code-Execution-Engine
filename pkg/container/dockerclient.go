@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"remote-code-engine/pkg/config"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -19,11 +20,12 @@ import (
 
 type dockerClient struct {
 	ContainerClient
-	client *client.Client
-	logger *zap.Logger
+	client         *client.Client
+	logger         *zap.Logger
+	languageConfig *map[config.Language]config.LanguageConfig
 }
 
-func NewDockerClient(opts *client.Opt, logger *zap.Logger) (ContainerClient, error) {
+func NewDockerClient(opts *client.Opt, arch config.Architecture, imageConfig *config.ImageConfig, logger *zap.Logger) (ContainerClient, error) {
 	var cli *client.Client
 	var err error
 
@@ -37,9 +39,15 @@ func NewDockerClient(opts *client.Opt, logger *zap.Logger) (ContainerClient, err
 		return &dockerClient{}, fmt.Errorf("failed to initiliaze docker client: %w", err)
 	}
 
+	languageConfig := imageConfig.X86_64
+	if arch == config.Arm64 {
+		languageConfig = imageConfig.Arm64
+	}
+
 	return &dockerClient{
-		client: cli,
-		logger: logger,
+		client:         cli,
+		logger:         logger,
+		languageConfig: &languageConfig,
 	}, nil
 }
 

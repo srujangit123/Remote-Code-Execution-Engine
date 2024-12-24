@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"remote-code-engine/pkg/config"
 	codecontainer "remote-code-engine/pkg/container"
+	"runtime"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -46,10 +49,31 @@ type Response struct {
 	Output string `json:"output"`
 }
 
+func getHostArchitecture() config.Architecture {
+	if runtime.GOARCH == "arm64" {
+		return config.Arm64
+	} else {
+		return config.X86_64
+	}
+}
+
 func main() {
 	defer logger.Sync()
 	_ = ParseFlags()
-	cli, err := codecontainer.NewDockerClient(nil, logger)
+	arch := getHostArchitecture()
+	_ = arch
+	// This should be given as a command line argument.
+	imageConfig, err := config.LoadConfig("../config.yml")
+	if err != nil {
+		logger.Error("failed to load the config file",
+			zap.Error(err),
+		)
+		panic(err)
+	}
+
+	fmt.Printf("imageConfig: %v\n", imageConfig)
+
+	cli, err := codecontainer.NewDockerClient(nil, arch, imageConfig, logger)
 	if err != nil {
 		logger.Error("failed to create a docker client",
 			zap.Error(err),
