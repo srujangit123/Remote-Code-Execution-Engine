@@ -1,8 +1,0 @@
-0. Return the output - done
-1. Rate limiter
-2. Frontend - should encode the code into base64 on the client side itself.
-3. Add cgroups so that there's no memory/cpu saturation because of a single code execution
-4. Clean the zombie containers to avoid memory leaks - done
-5. Do pprof
-6. Perf improvements using pprof to reduce the overall latency
-7. Scope this repo only to backend and create a frontend in a different repo.
