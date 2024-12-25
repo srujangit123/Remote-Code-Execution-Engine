@@ -3,7 +3,6 @@ package codecontainer
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -70,13 +69,14 @@ func (d *dockerClient) GetContainers(ctx context.Context, opts *container.ListOp
 // TODO: Add Cgroups support
 // TODO: Improve security: drop all the capabilities and use only those that are absolutely necessary.
 func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, error) {
-	codeFileName, err := d.createCodeFileHost(code)
+	codeFileName, inputFileName, err := createCodeAndInputFilesHost(code, d.logger)
 	if err != nil {
-		return "", fmt.Errorf("failed to create the code file: %w", err)
+		return "", fmt.Errorf("failed to create code and input files: %w", err)
 	}
-	d.logger.Info("successfully created the code file in the host")
-
-	var inputFileName string
+	d.logger.Info("created code and input files",
+		zap.String("code file name", codeFileName),
+		zap.String("input file name", inputFileName),
+	)
 
 	res, err := d.client.ContainerCreate(ctx, &container.Config{
 		Cmd:   getContainerCommand(code, codeFileName, inputFileName),
@@ -198,43 +198,8 @@ func (d *dockerClient) FreeUpZombieContainers(ctx context.Context) error {
 	}
 }
 
-func (d *dockerClient) createCodeFileHost(code *Code) (string, error) {
-	codeFilePath := getCodeFilePathHost(code)
-	f, err := os.Create(codeFilePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to create the file: %w", err)
-	}
-
-	data, err := base64.StdEncoding.DecodeString(code.EncodedCode)
-	if err != nil {
-		return filepath.Base(codeFilePath), fmt.Errorf("failed to decode the code text: %w", err)
-	}
-
-	n, err := f.Write([]byte(data))
-	if err != nil {
-		return filepath.Base(codeFilePath), fmt.Errorf("failed to write the content to the file: %w", err)
-	}
-	d.logger.Info("wrote the code content to the file",
-		zap.String("file path", codeFilePath),
-		zap.Int("bytes", n),
-	)
-
-	return filepath.Base(codeFilePath), nil
-}
-
 func getContainerName() string {
 	return fmt.Sprintf("code-execution-%s", uuid.New().String())
-}
-
-func getFilePathContainer(mountPath, fileName string) string {
-	return filepath.Join(mountPath, fileName)
-}
-
-func getCodeFilePathHost(code *Code) string {
-	filename := uuid.New().String()
-	fileExtension := code.Extension
-	codeDirectoryPathHost := config.GetHostLanguageCodePath(code.Language)
-	return filepath.Join(codeDirectoryPathHost, filename+fileExtension)
 }
 
 func getContainerCommand(code *Code, codeFileName, inputFileName string) []string {
