@@ -88,7 +88,7 @@ curl -X POST http://localhost:9000/api/v1/submit \
 ```
 
 ## TODO
-- <input disabled="" type="checkbox"> Rate limiter and tokens
-- <input disabled="" type="checkbox"> Add cgroups so that there's no memory/cpu saturation because of a single code execution
-- <input disabled="" type="checkbox"> Do pprof - Perf improvements using pprof to reduce the overall latency
-- <input disabled="" type="checkbox"> Add frontend and OAuth
+<input disabled="" type="checkbox"> Rate limiter and tokens<br>
+<input disabled="" type="checkbox"> Add cgroups so that there's no memory/cpu saturation because of a single code execution<br>
+<input disabled="" type="checkbox"> Do pprof - Perf improvements using pprof to reduce the overall latency <br>
+<input disabled="" type="checkbox"> Add frontend and OAuth
