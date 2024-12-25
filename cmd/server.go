@@ -40,7 +40,6 @@ func StartServer(cli codecontainer.ContainerClient, config *config.ImageConfig) 
 
 func main() {
 	defer logger.Sync()
-	_ = ParseFlags()
 	// This should be given as a command line argument.
 	imageConfig, err := config.LoadConfig("../config.yml")
 	if err != nil {
