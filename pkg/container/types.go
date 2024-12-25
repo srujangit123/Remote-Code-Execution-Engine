@@ -2,6 +2,7 @@ package codecontainer
 
 import (
 	"context"
+	"remote-code-engine/pkg/config"
 
 	"github.com/docker/docker/api/types/container"
 )
@@ -13,9 +14,10 @@ type Container struct {
 }
 
 type Code struct {
-	EncodedCode string
-	FileName    string
-	Language    string
+	EncodedCode  string
+	EncodedInput string
+	Language     config.Language
+	config.LanguageConfig
 }
 
 type ContainerClient interface {

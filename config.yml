@@ -1,14 +1,8 @@
-arm64:
-  cpp:
-    extension: ".cpp"
-    image: "cpp_arm64:latest"
-  golang:
-    extension: ".go"
-    image: "golang_arm64:latest"
-x86_64:
-  cpp: 
-    extension: ".cpp"
-    image: "cpp_x86_64:latest"
-  golang:
-    extension: ".go"
-    image: "golang_x86_64:latest"
+cpp:
+  extension: ".cpp"
+  image: "cpp_arm64:latest"
+  command: "/usr/bin/run-code.sh {{LANGUAGE}} {{FILE}}"
+golang:
+  extension: ".go"
+  image: "golang_arm64:latest"
+  command: "/usr/bin/run-code.sh {{LANGUAGE}} {{FILE}}"

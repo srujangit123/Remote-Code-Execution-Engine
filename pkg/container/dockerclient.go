@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"remote-code-engine/pkg/config"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -15,17 +16,17 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
 type dockerClient struct {
 	ContainerClient
-	client         *client.Client
-	logger         *zap.Logger
-	languageConfig *map[config.Language]config.LanguageConfig
+	client *client.Client
+	logger *zap.Logger
 }
 
-func NewDockerClient(opts *client.Opt, arch config.Architecture, imageConfig *config.ImageConfig, logger *zap.Logger) (ContainerClient, error) {
+func NewDockerClient(opts *client.Opt, logger *zap.Logger) (ContainerClient, error) {
 	var cli *client.Client
 	var err error
 
@@ -39,15 +40,9 @@ func NewDockerClient(opts *client.Opt, arch config.Architecture, imageConfig *co
 		return &dockerClient{}, fmt.Errorf("failed to initiliaze docker client: %w", err)
 	}
 
-	languageConfig := imageConfig.X86_64
-	if arch == config.Arm64 {
-		languageConfig = imageConfig.Arm64
-	}
-
 	return &dockerClient{
-		client:         cli,
-		logger:         logger,
-		languageConfig: &languageConfig,
+		client: cli,
+		logger: logger,
 	}, nil
 }
 
@@ -75,24 +70,26 @@ func (d *dockerClient) GetContainers(ctx context.Context, opts *container.ListOp
 // TODO: Add Cgroups support
 // TODO: Improve security: drop all the capabilities and use only those that are absolutely necessary.
 func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, error) {
-	err := d.createCodeFileHost(code)
+	codeFileName, err := d.createCodeFileHost(code)
 	if err != nil {
 		return "", fmt.Errorf("failed to create the code file: %w", err)
 	}
 	d.logger.Info("successfully created the code file in the host")
 
+	var inputFileName string
+
 	res, err := d.client.ContainerCreate(ctx, &container.Config{
-		Cmd:   getLanguageRunCmd(code),
-		Image: getLanguageContainerImage(code.Language),
+		Cmd:   getContainerCommand(code, codeFileName, inputFileName),
+		Image: code.Image,
 	}, &container.HostConfig{
 		Mounts: []mount.Mount{
 			{
 				Type:   mount.TypeBind,
-				Source: getHostLanguageCodePath(code.Language),
+				Source: config.GetHostLanguageCodePath(code.Language),
 				Target: TargetMountPath,
 			},
 		},
-	}, nil, nil, getContainerName(code))
+	}, nil, nil, getContainerName())
 
 	if err != nil {
 		return "", fmt.Errorf("failed to create a container: %w", err)
@@ -105,8 +102,17 @@ func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, err
 
 	d.logger.Info("container started, waiting for the container to exit")
 	statusCh, errCh := d.client.ContainerWait(ctx, res.ID, container.WaitConditionNotRunning)
+	ticker := time.NewTicker(60 * time.Second)
 
 	select {
+	case <-ticker.C:
+		d.logger.Info("container has been running for more than 60 seconds, killing the container",
+			zap.String("container ID", res.ID),
+		)
+		if err := d.client.ContainerKill(ctx, res.ID, "KILL"); err != nil {
+			return "", fmt.Errorf("failed to kill the container: %w", err)
+		}
+		d.logger.Info("killed the container")
 	case err := <-errCh:
 		if err != nil {
 			return "", fmt.Errorf("failed to get the container logs: %w", err)
@@ -129,7 +135,12 @@ func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, err
 		return "", fmt.Errorf("error processing the logs: %w", err)
 	}
 
-	return stdoutBuf.String() + "\n" + stderrBuf.String(), nil
+	output := stdoutBuf.String()
+	if stderrBuf.Len() > 0 {
+		output += "\n" + stderrBuf.String()
+	}
+
+	return output, nil
 }
 
 func deleteStaleFiles(dir string, logger *zap.Logger) error {
@@ -187,87 +198,56 @@ func (d *dockerClient) FreeUpZombieContainers(ctx context.Context) error {
 	}
 }
 
-func (d *dockerClient) createCodeFileHost(code *Code) error {
+func (d *dockerClient) createCodeFileHost(code *Code) (string, error) {
 	codeFilePath := getCodeFilePathHost(code)
 	f, err := os.Create(codeFilePath)
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("failed to create the file: %w", err)
 	}
 
 	data, err := base64.StdEncoding.DecodeString(code.EncodedCode)
 	if err != nil {
-		return fmt.Errorf("failed to decode the code text: %w", err)
+		return filepath.Base(codeFilePath), fmt.Errorf("failed to decode the code text: %w", err)
 	}
 
 	n, err := f.Write([]byte(data))
 	if err != nil {
-		return fmt.Errorf("failed to write the content to the file: %w", err)
+		return filepath.Base(codeFilePath), fmt.Errorf("failed to write the content to the file: %w", err)
 	}
 	d.logger.Info("wrote the code content to the file",
 		zap.String("file path", codeFilePath),
 		zap.Int("bytes", n),
 	)
 
-	return nil
+	return filepath.Base(codeFilePath), nil
 }
 
-func getHostLanguageCodePath(lang string) string {
-	switch lang {
-	case "cpp":
-		return CppCodePath
-	case "golang":
-		return GolangCodePath
-	}
-	return ""
+func getContainerName() string {
+	return fmt.Sprintf("code-execution-%s", uuid.New().String())
 }
 
-func getContainerName(code *Code) string {
-	return code.Language + "_" + code.FileName
-}
-
-// Only supports Golang and CPP for now. TODO: Add python, java, etc.
-func getLanguageContainerImage(lang string) string {
-	switch lang {
-	case "golang":
-		return GolangContainerImage
-	case "cpp":
-		return cppContainerImage
-
-	default:
-		return ""
-	}
-}
-
-func getCodeFilePath(code *Code) string {
-	var fileExtension string
-	switch code.Language {
-	case "cpp":
-		fileExtension = "cpp"
-	case "golang":
-		fileExtension = "go"
-	}
-	return filepath.Join(TargetMountPath, code.FileName+"."+fileExtension)
+func getFilePathContainer(mountPath, fileName string) string {
+	return filepath.Join(mountPath, fileName)
 }
 
 func getCodeFilePathHost(code *Code) string {
-	var fileExtension string
-	var codeDirectoryPath string
-	switch code.Language {
-	case "cpp":
-		fileExtension = "cpp"
-		codeDirectoryPath = CppCodePath
-	case "golang":
-		fileExtension = "go"
-		codeDirectoryPath = GolangCodePath
-	}
-	return filepath.Join(codeDirectoryPath, code.FileName+"."+fileExtension)
+	filename := uuid.New().String()
+	fileExtension := code.Extension
+	codeDirectoryPathHost := config.GetHostLanguageCodePath(code.Language)
+	return filepath.Join(codeDirectoryPathHost, filename+fileExtension)
 }
 
-func getLanguageRunCmd(code *Code) []string {
-	codeFilePath := getCodeFilePath(code)
+func getContainerCommand(code *Code, codeFileName, inputFileName string) []string {
+	codeFilePath := getFilePathContainer(TargetMountPath, codeFileName)
+	inputFilePath := getFilePathContainer(TargetMountPath, inputFileName)
+
+	command := code.Command
+	command = strings.Replace(command, "{{LANGUAGE}}", string(code.Language), -1)
+	command = strings.Replace(command, "{{FILE}}", codeFilePath, -1)
+	command = strings.Replace(command, "{{INPUT}}", inputFilePath, -1)
 
 	return []string{
 		"sh", "-c",
-		fmt.Sprintf("/usr/bin/run-code.sh %s %s", code.Language, codeFilePath),
+		command,
 	}
 }

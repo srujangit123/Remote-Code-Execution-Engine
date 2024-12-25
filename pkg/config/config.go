@@ -3,11 +3,11 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
 
-type Architecture string
 type Language string
 
 // Supported languages
@@ -16,21 +16,17 @@ const (
 	Cpp    Language = "cpp"
 )
 
-// Supported architectures
 const (
-	Arm64  Architecture = "arm64"
-	X86_64 Architecture = "x86_64"
+	BaseCodePath = "/Users/sbharadwaj/Documents/repos/code"
 )
 
 type LanguageConfig struct {
 	Extension string `yaml:"extension"`
 	Image     string `yaml:"image"`
+	Command   string `yaml:"command"`
 }
 
-type ImageConfig struct {
-	Arm64  map[Language]LanguageConfig `yaml:"arm64"`
-	X86_64 map[Language]LanguageConfig `yaml:"x86_64"`
-}
+type ImageConfig map[Language]LanguageConfig
 
 func LoadConfig(configPath string) (*ImageConfig, error) {
 	data, err := os.ReadFile(configPath)
@@ -45,4 +41,12 @@ func LoadConfig(configPath string) (*ImageConfig, error) {
 	}
 
 	return &config, nil
+}
+
+func (c *ImageConfig) GetLanguageConfig(lang Language) LanguageConfig {
+	return (*c)[lang]
+}
+
+func GetHostLanguageCodePath(lang Language) string {
+	return filepath.Join(BaseCodePath, string(lang))
 }
