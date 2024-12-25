@@ -2,27 +2,12 @@ package codecontainer
 
 import "time"
 
-// TODO: Is it better to store this as environment variables?
 const (
-	GolangContainerImage = "rce-golang:latest"
-	cppContainerImage    = "arm64/cpp:latest"
-
-	MAX_EXECUTION_TIME = 20 * time.Second
-	MAX_SLEEP_TIME     = 400 * time.Second
+	MAX_EXECUTION_TIME = 60 * time.Second
 
 	// The server running this will check for every 10 minutes whether there are zombie containers - completed containers and removes them.
-	GarbageCollectionTimeWindow = 10 * time.Minute
-
-	baseCodePath = "/Users/sbharadwaj/Documents/repos/code/"
-	// Make this part of env variables. There should be a setup scripts that adds these values to env variable.
-	CppCodePath    = baseCodePath + "cpp"
-	GolangCodePath = baseCodePath + "golang"
+	GarbageCollectionTimeWindow = 5 * time.Minute
 
 	// Path where the code files are mounted.
 	TargetMountPath = "/container/code"
-
-	BaseContainerCodeExecutablePath = TargetMountPath
-
-	// How many times we should probe to see if there's an output file or not
-	MAX_RETRIES = 10
 )

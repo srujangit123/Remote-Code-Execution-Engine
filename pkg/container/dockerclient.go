@@ -102,7 +102,7 @@ func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, err
 
 	d.logger.Info("container started, waiting for the container to exit")
 	statusCh, errCh := d.client.ContainerWait(ctx, res.ID, container.WaitConditionNotRunning)
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(MAX_EXECUTION_TIME)
 
 	select {
 	case <-ticker.C:
@@ -191,10 +191,10 @@ func (d *dockerClient) FreeUpZombieContainers(ctx context.Context) error {
 			zap.Int("#Pruned containers", len(pruneResults.ContainersDeleted)),
 		)
 
-		deleteStaleFiles(CppCodePath, d.logger)
-		deleteStaleFiles(GolangCodePath, d.logger)
+		deleteStaleFiles(config.GetHostLanguageCodePath(config.Cpp), d.logger)
+		deleteStaleFiles(config.GetHostLanguageCodePath(config.Golang), d.logger)
 
-		time.Sleep(5 * time.Minute)
+		time.Sleep(GarbageCollectionTimeWindow)
 	}
 }
 
