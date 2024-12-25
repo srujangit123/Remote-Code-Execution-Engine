@@ -1,15 +1,21 @@
 #!/bin/sh
 
-if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 <language> <source_file_path>"
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <language> <source_file_path> <input_file_path>"
     exit 1
 fi
 
 language="$1"
 source_file="$2"
+input_file="$3"
 
 if [ ! -f "$source_file" ]; then
     echo "Error: Source file '$source_file' does not exist!" >&2
+    exit 1
+fi
+
+if [ ! -f "$input_file" ]; then
+    echo "Error: Input file '$input_file' does not exist!" >&2
     exit 1
 fi
 
@@ -25,7 +31,7 @@ run_cpp() {
     fi
 
     # Run the compiled executable, redirecting both stdout and stderr to the terminal
-    ./$executable 2>&1
+    ./$executable < "$input_file" 2>&1
 
     if [ $? -ne 0 ]; then
         echo "Runtime error occurred. Check the output above for details." >&2
@@ -38,7 +44,7 @@ run_cpp() {
 # Go function to run the program
 run_go() {
     # Run the Go program and capture both stdout and stderr
-    go run "$source_file" 2>&1
+    go run "$source_file" < "$input_file" 2>&1
     if [ $? -ne 0 ]; then
         echo "Runtime error occurred while running the Go program." >&2
     fi

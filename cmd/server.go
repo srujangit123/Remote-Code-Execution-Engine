@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"remote-code-engine/pkg/config"
 	codecontainer "remote-code-engine/pkg/container"
@@ -39,16 +38,6 @@ func StartServer(cli codecontainer.ContainerClient, config *config.ImageConfig) 
 	return server.ListenAndServe()
 }
 
-type Request struct {
-	EncodedCode  string          `json:"code"`
-	EncodedInput string          `json: "input"`
-	Language     config.Language `json:"language"`
-}
-
-type Response struct {
-	Output string `json:"output"`
-}
-
 func main() {
 	defer logger.Sync()
 	_ = ParseFlags()
@@ -61,7 +50,9 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("imageConfig: %v\n", imageConfig)
+	logger.Debug("loaded the config file",
+		zap.Any("config", imageConfig),
+	)
 
 	cli, err := codecontainer.NewDockerClient(nil, logger)
 	if err != nil {

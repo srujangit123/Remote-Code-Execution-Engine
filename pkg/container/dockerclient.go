@@ -211,6 +211,8 @@ func getContainerCommand(code *Code, codeFileName, inputFileName string) []strin
 	command = strings.Replace(command, "{{FILE}}", codeFilePath, -1)
 	command = strings.Replace(command, "{{INPUT}}", inputFilePath, -1)
 
+	fmt.Println("Command to be executed:", command)
+
 	return []string{
 		"sh", "-c",
 		command,

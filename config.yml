@@ -1,8 +1,8 @@
 cpp:
   extension: ".cpp"
   image: "cpp_arm64:latest"
-  command: "/usr/bin/run-code.sh {{LANGUAGE}} {{FILE}}"
+  command: "/usr/bin/run-code.sh {{LANGUAGE}} {{FILE}} {{INPUT}}"
 golang:
   extension: ".go"
   image: "golang_arm64:latest"
-  command: "/usr/bin/run-code.sh {{LANGUAGE}} {{FILE}}"
+  command: "/usr/bin/run-code.sh {{LANGUAGE}} {{FILE}} {{INPUT}}"

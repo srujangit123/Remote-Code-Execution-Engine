@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"remote-code-engine/pkg/config"
 	codecontainer "remote-code-engine/pkg/container"
@@ -27,6 +28,9 @@ func RegisterRoutes(r *gin.Engine, client codecontainer.ContainerClient, config 
 			Language:       req.Language,
 			LanguageConfig: config.GetLanguageConfig(req.Language),
 		}
+		fmt.Println("-------------------- input -------------------")
+		fmt.Println(code.EncodedInput)
+		fmt.Println("-------------------- input end -------------------")
 
 		logger.Info("created a code execution request",
 			zap.Any("Language", code.Language),

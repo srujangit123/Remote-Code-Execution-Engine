@@ -2,4 +2,4 @@ curl http://localhost:9000/api/v1/submit \
     --include \
     --header "Content-Type: application/json" \
     --request "POST" \
-    --data '{"code": "4","language": "asdfasdf"}'
+    --data '{"code": "I2luY2x1ZGUgPGlvc3RyZWFtPgojaW5jbHVkZSA8c3RyaW5nPgoKaW50IG1haW4oKSB7CiAgICAvLyBEZWNsYXJlIGEgc3RyaW5nIHZhcmlhYmxlIHRvIGhvbGQgdGhlIHVzZXIgaW5wdXQKICAgIHN0ZDo6c3RyaW5nIHVzZXJJbnB1dDsKCiAgICAvLyBUYWtlIGlucHV0IGZyb20gdGhlIHVzZXIKICAgIHN0ZDo6Z2V0bGluZShzdGQ6OmNpbiwgdXNlcklucHV0KTsKCiAgICAvLyBPdXRwdXQgdGhlIHN0cmluZyBlbnRlcmVkIGJ5IHRoZSB1c2VyCiAgICBzdGQ6OmNvdXQgPDwgIllvdSBlbnRlcmVkOiAiIDw8IHVzZXJJbnB1dCA8PCBzdGQ6OmVuZGw7CgogICAgcmV0dXJuIDA7Cn0K", "input": "c3J1amFu","language": "cpp"}'
