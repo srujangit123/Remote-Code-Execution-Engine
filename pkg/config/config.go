@@ -47,6 +47,11 @@ func (c *ImageConfig) GetLanguageConfig(lang Language) LanguageConfig {
 	return (*c)[lang]
 }
 
+func (c *ImageConfig) IsLanguageSupported(lang Language) bool {
+	_, ok := (*c)[lang]
+	return ok
+}
+
 func GetHostLanguageCodePath(lang Language) string {
 	return filepath.Join(BaseCodePath, string(lang))
 }
