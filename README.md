@@ -9,6 +9,8 @@ This repository contains a remote code execution engine that allows users to sub
 - Supports both `x86_64` and `arm64` architecture machines.
 - Cleans up zombie containers to avoid memory leaks.
 - Provides a REST API for code submission and execution.
+- Restricts the usage of system resources (Memory, CPU, max processes, max files, max file size)
+- Kills a container if it is taking more than a minute to complete the execution.
 - Supports custom docker images and compilation commands for each programming language.
 
 ## Prerequisites
