@@ -51,6 +51,13 @@ golang:
   command: "/usr/bin/run-code.sh {{LANGUAGE}} {{FILE}} {{INPUT}}"
 ```
 
+### Variables available in the command config
+- {{LANGUAGE}} - programming language
+- {{FILE}} - Code file with the extension as specified in the config
+- {{INPUT}} - Input file if the input is provided by the user
+
+These variables are replaced with appropriate values before creating the code container.
+
 ## Running the server
 To start the server, run the following command:
 ```sh
