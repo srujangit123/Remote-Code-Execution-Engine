@@ -16,8 +16,8 @@ const (
 	Cpp    Language = "cpp"
 )
 
-const (
-	BaseCodePath = "/Users/sbharadwaj/Documents/repos/code"
+var (
+	BaseCodePath string
 )
 
 type LanguageConfig struct {

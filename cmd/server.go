@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"flag"
 	"net/http"
+	"os"
 	"remote-code-engine/pkg/config"
 	codecontainer "remote-code-engine/pkg/container"
 	"time"
@@ -38,8 +40,26 @@ func StartServer(cli codecontainer.ContainerClient, config *config.ImageConfig) 
 	return server.ListenAndServe()
 }
 
+func setupCodeDirectory(imageConfig config.ImageConfig) {
+	for lang := range imageConfig {
+		path := config.GetHostLanguageCodePath(lang)
+		if err := os.MkdirAll(path, 0755); err != nil {
+			logger.Error("failed to create the code directory for the language",
+				zap.String("language", string(lang)),
+				zap.String("path", path),
+				zap.Error(err),
+			)
+			panic(err)
+		}
+	}
+}
+
 func main() {
 	defer logger.Sync()
+
+	flag.StringVar(&config.BaseCodePath, "code-dir", "/tmp/", "Base path to store the code files")
+	flag.Parse()
+
 	// This should be given as a command line argument.
 	imageConfig, err := config.LoadConfig("../config.yml")
 	if err != nil {
@@ -48,6 +68,8 @@ func main() {
 		)
 		panic(err)
 	}
+
+	setupCodeDirectory(*imageConfig)
 
 	logger.Debug("loaded the config file",
 		zap.Any("config", imageConfig),
