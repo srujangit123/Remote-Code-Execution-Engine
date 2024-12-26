@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/go-units"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -87,6 +88,44 @@ func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, err
 				Type:   mount.TypeBind,
 				Source: config.GetHostLanguageCodePath(code.Language),
 				Target: TargetMountPath,
+			},
+		},
+		// don't let the containers use any network
+		NetworkMode: "none",
+		RestartPolicy: container.RestartPolicy{
+			Name: "no",
+		},
+		// We are reading the container logs to get the output. So it's better to disable and have a separate thread to delete stale containers
+		AutoRemove: false,
+		// Drop all the capabilities
+		CapDrop:    []string{"ALL"},
+		Privileged: false,
+		// Set the memory limit to 1GB
+		Resources: container.Resources{
+			// set 100 MB as the memory limit in bytes
+			Memory: 100 * 1024 * 1024,
+			Ulimits: []*units.Ulimit{
+				{
+					Name: "nproc",
+					Soft: 32,
+					Hard: 32,
+				},
+				{
+					Name: "nofile",
+					Soft: 32,
+					Hard: 32,
+				},
+				{
+					Name: "core",
+					Soft: 0,
+					Hard: 0,
+				},
+				{
+					// Maximum file size that can be created by the process (output file in our case)
+					Name: "fsize",
+					Soft: 20 * 1024 * 1024,
+					Hard: 20 * 1024 * 1024,
+				},
 			},
 		},
 	}, nil, nil, getContainerName())
