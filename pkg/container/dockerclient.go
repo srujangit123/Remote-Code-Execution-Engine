@@ -150,6 +150,7 @@ func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, err
 			return "", fmt.Errorf("failed to kill the container: %w", err)
 		}
 		d.logger.Info("killed the container")
+		return "Time limit exceeded", nil
 	case err := <-errCh:
 		if err != nil {
 			return "", fmt.Errorf("failed to get the container logs: %w", err)
