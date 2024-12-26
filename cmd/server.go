@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"net/http"
 	"os"
 	"remote-code-engine/pkg/config"
@@ -55,10 +54,11 @@ func setupCodeDirectory(imageConfig config.ImageConfig) {
 }
 
 func main() {
-	defer logger.Sync()
+	defer func() {
+		_ = logger.Sync()
+	}()
 
-	flag.StringVar(&config.BaseCodePath, "code-dir", "/tmp/", "Base path to store the code files")
-	flag.Parse()
+	ParseFlags()
 
 	// This should be given as a command line argument.
 	imageConfig, err := config.LoadConfig("../config.yml")
@@ -83,7 +83,23 @@ func main() {
 		panic(err)
 	}
 
-	go cli.FreeUpZombieContainers(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 
-	StartServer(cli, imageConfig)
+	go func() {
+		err = cli.FreeUpZombieContainers(ctx)
+		if err != nil {
+			logger.Error("failed to free up zombie containers",
+				zap.Error(err),
+			)
+		}
+	}()
+
+	err = StartServer(cli, imageConfig)
+	if err != nil {
+		logger.Error("failed to start the server",
+			zap.Error(err),
+		)
+		cancel()
+		panic(err)
+	}
 }

@@ -34,7 +34,7 @@ func TestLoadConfig(t *testing.T) {
 
 	// Write the sample config to a temporary file
 	configPath := filepath.Join(tempDir, "config.yaml")
-	err = os.WriteFile(configPath, data, 0644)
+	err = os.WriteFile(configPath, data, 0600)
 	if err != nil {
 		t.Fatalf("failed to write sample config to file: %v", err)
 	}

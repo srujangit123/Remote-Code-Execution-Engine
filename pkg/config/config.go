@@ -17,7 +17,8 @@ const (
 )
 
 var (
-	BaseCodePath string
+	BaseCodePath        string
+	ResourceConstraints bool
 )
 
 type LanguageConfig struct {
@@ -54,4 +55,8 @@ func (c *ImageConfig) IsLanguageSupported(lang Language) bool {
 
 func GetHostLanguageCodePath(lang Language) string {
 	return filepath.Join(BaseCodePath, string(lang))
+}
+
+func IsResourceConstraintsEnabled() bool {
+	return ResourceConstraints
 }

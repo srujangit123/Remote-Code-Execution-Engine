@@ -40,7 +40,7 @@ func createFile(filePath, base64FileContent string, logger *zap.Logger) (string,
 		return filepath.Base(filePath), fmt.Errorf("failed to decode the file content: %w", err)
 	}
 
-	n, err := f.Write([]byte(data))
+	n, err := f.Write(data)
 	if err != nil {
 		return filepath.Base(filePath), fmt.Errorf("failed to write the content to the file: %w", err)
 	}

@@ -47,7 +47,7 @@ func NewDockerClient(opts *client.Opt, logger *zap.Logger) (ContainerClient, err
 }
 
 func (d *dockerClient) GetContainers(ctx context.Context, opts *container.ListOptions) ([]Container, error) {
-	var containersList []Container
+	containersList := []Container{}
 
 	containers, err := d.client.ContainerList(ctx, *opts)
 	if err != nil {
@@ -66,42 +66,11 @@ func (d *dockerClient) GetContainers(ctx context.Context, opts *container.ListOp
 	return containersList, nil
 }
 
-func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, error) {
-	codeFileName, inputFileName, err := createCodeAndInputFilesHost(code, d.logger)
-	if err != nil {
-		return "", fmt.Errorf("failed to create code and input files: %w", err)
-	}
-	d.logger.Info("created code and input files",
-		zap.String("code file name", codeFileName),
-		zap.String("input file name", inputFileName),
-	)
-
-	res, err := d.client.ContainerCreate(ctx, &container.Config{
-		Cmd:   getContainerCommand(code, codeFileName, inputFileName),
-		Image: code.Image,
-	}, &container.HostConfig{
-		Mounts: []mount.Mount{
-			{
-				Type:   mount.TypeBind,
-				Source: config.GetHostLanguageCodePath(code.Language),
-				Target: TargetMountPath,
-			},
-		},
-		// don't let the containers use any network
-		NetworkMode: "none",
-		RestartPolicy: container.RestartPolicy{
-			Name: "no",
-		},
-		// We are reading the container logs to get the output. So it's better to disable and have a separate thread to delete stale containers
-		AutoRemove: false,
-		// Drop all the capabilities
-		CapDrop:    []string{"ALL"},
-		Privileged: false,
-		// Set the memory limit to 1GB
-		Resources: container.Resources{
-			// set 500 MB as the memory limit in bytes
-			Memory:   500 * 1024 * 1024,
-			NanoCPUs: 500000000, // 0.5 CPU
+func (d *dockerClient) getResourceConstraints() container.Resources {
+	if config.IsResourceConstraintsEnabled() {
+		return container.Resources{
+			Memory:   500 * 1024 * 1024, // 500 MB
+			NanoCPUs: 1000000000,        // 1 CPU
 			Ulimits: []*units.Ulimit{
 				{
 					Name: "nproc",
@@ -125,7 +94,46 @@ func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, err
 					Hard: 20 * 1024 * 1024,
 				},
 			},
+		}
+	}
+	return container.Resources{}
+}
+
+func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, error) {
+	codeFileName, inputFileName, err := createCodeAndInputFilesHost(code, d.logger)
+	if err != nil {
+		return "", fmt.Errorf("failed to create code and input files: %w", err)
+	}
+	d.logger.Info("created code and input files",
+		zap.String("code file name", codeFileName),
+		zap.String("input file name", inputFileName),
+	)
+
+	resourceConstraints := d.getResourceConstraints()
+
+	res, err := d.client.ContainerCreate(ctx, &container.Config{
+		Cmd:   getContainerCommand(code, codeFileName, inputFileName),
+		Image: code.Image,
+	}, &container.HostConfig{
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: config.GetHostLanguageCodePath(code.Language),
+				Target: TargetMountPath,
+			},
 		},
+		// don't let the containers use any network
+		NetworkMode: "none",
+		RestartPolicy: container.RestartPolicy{
+			Name: "no",
+		},
+		// We are reading the container logs to get the output.
+		// So it's better to disable and have a separate thread to delete stale containers
+		AutoRemove: false,
+		// Drop all the capabilities
+		CapDrop:    []string{"ALL"},
+		Privileged: false,
+		Resources:  resourceConstraints,
 	}, nil, nil, getContainerName())
 
 	if err != nil {
@@ -217,22 +225,36 @@ func deleteStaleFiles(dir string, logger *zap.Logger) error {
 }
 
 func (d *dockerClient) FreeUpZombieContainers(ctx context.Context) error {
+	ticker := time.NewTicker(GarbageCollectionTimeWindow)
 	for {
-		pruneResults, err := d.client.ContainersPrune(ctx, filters.Args{})
-		if err != nil {
-			d.logger.Error("failed to prune containers",
-				zap.Error(err),
+		select {
+		case <-ctx.Done():
+			d.logger.Info("stopping the zombie container cleanup routine")
+			return nil
+		case <-ticker.C:
+			pruneResults, err := d.client.ContainersPrune(ctx, filters.Args{})
+			if err != nil {
+				d.logger.Error("failed to prune containers",
+					zap.Error(err),
+				)
+			}
+
+			d.logger.Info("successfully pruned the containers:",
+				zap.Int("#Pruned containers", len(pruneResults.ContainersDeleted)),
 			)
+
+			if err = deleteStaleFiles(config.GetHostLanguageCodePath(config.Cpp), d.logger); err != nil {
+				d.logger.Error("failed to delete stale files",
+					zap.Error(err),
+				)
+			}
+
+			if err = deleteStaleFiles(config.GetHostLanguageCodePath(config.Golang), d.logger); err != nil {
+				d.logger.Error("failed to delete stale files",
+					zap.Error(err),
+				)
+			}
 		}
-
-		d.logger.Info("successfully pruned the containers:",
-			zap.Int("#Pruned containers", len(pruneResults.ContainersDeleted)),
-		)
-
-		deleteStaleFiles(config.GetHostLanguageCodePath(config.Cpp), d.logger)
-		deleteStaleFiles(config.GetHostLanguageCodePath(config.Golang), d.logger)
-
-		time.Sleep(GarbageCollectionTimeWindow)
 	}
 }
 

@@ -71,11 +71,20 @@ To start the server, run the following command:
 ```sh
 ./server
 ```
-The default directory where the code files will be stored is `/tmp/`
-A separate directory is created for every language.
-To change the directory where the code files will be stored(eventually removed by the garbage collector), use
+
+### Flags
+- `--code-dir`
+    The default directory where the code files will be stored is `/tmp/`
+    A separate directory is created for every language.
+    To change the directory where the code files will be stored(eventually removed by the garbage collector), use
 ```sh
 ./server --code-dir /path/to/code/dir
+```
+
+- `--resource-constraints`
+    By default, resource constraints are turned off to improve the performance, if you want to enable it, use
+```sh
+./server --resource-constraints true
 ```
 
 ## API
