@@ -1,5 +1,8 @@
 # Remote Code Execution Engine
 
+![Go](https://github.com/srujangit123/Remote-Code-Execution-Engine/actions/workflows/go.yml/badge.svg)
+
+
 This repository contains a remote code execution engine that allows users to submit code in various programming languages, execute it in isolated Docker containers, and retrieve the output. The engine supports both `x86_64` and `arm64` architectures.
 
 ## Features
