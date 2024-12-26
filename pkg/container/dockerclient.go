@@ -66,9 +66,6 @@ func (d *dockerClient) GetContainers(ctx context.Context, opts *container.ListOp
 	return containersList, nil
 }
 
-// 1. Use volume mounts. Mount a specific file - the upload file. Then run the container with a custom command.
-// TODO: Add Cgroups support
-// TODO: Improve security: drop all the capabilities and use only those that are absolutely necessary.
 func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, error) {
 	codeFileName, inputFileName, err := createCodeAndInputFilesHost(code, d.logger)
 	if err != nil {
