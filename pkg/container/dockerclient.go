@@ -175,7 +175,7 @@ func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, err
 
 	output := stdoutBuf.String()
 	if stderrBuf.Len() > 0 {
-		output += "\n" + stderrBuf.String()
+		output = output + "\nReceived error while executing the code: " + stderrBuf.String()
 	}
 
 	return output, nil
