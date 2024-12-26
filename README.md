@@ -99,7 +99,3 @@ curl -X POST http://localhost:9000/api/v1/submit \
      -H "Content-Type: application/json" \
      -d '{"code": "base64_encoded_code", "input": "base64_encoded_input", "language": "cpp"}'
 ```
-
-## TODO
-<input disabled="" type="checkbox"> Rate limiter and tokens<br>
-<input disabled="" type="checkbox"> Add frontend and OAuth
