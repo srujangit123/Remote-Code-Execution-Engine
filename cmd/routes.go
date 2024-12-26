@@ -21,6 +21,14 @@ func RegisterRoutes(r *gin.Engine, client codecontainer.ContainerClient, config 
 			zap.Any("request params", req),
 		)
 
+		if !config.IsLanguageSupported(req.Language) {
+			logger.Error("unsupported language",
+				zap.String("language", string(req.Language)),
+			)
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported language"})
+			return
+		}
+
 		code := &codecontainer.Code{
 			EncodedCode:    req.EncodedCode,
 			EncodedInput:   req.EncodedInput,
