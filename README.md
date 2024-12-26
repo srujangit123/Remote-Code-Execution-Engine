@@ -6,9 +6,10 @@ This repository contains a remote code execution engine that allows users to sub
 
 - Supports C++ and Go programming languages.
 - Executes code in isolated Docker containers.
-- Supports both `x86_64` and `arm64` architectures.
+- Supports both `x86_64` and `arm64` architecture machines.
 - Cleans up zombie containers to avoid memory leaks.
 - Provides a REST API for code submission and execution.
+- Supports custom docker images and compilation commands for each programming language.
 
 ## Prerequisites
 
@@ -25,6 +26,8 @@ This repository contains a remote code execution engine that allows users to sub
     ```
 
 2. Build the Docker images:
+This builds the default docker images and uses the default config (`config.yml`)
+Skip this step if you want to use custom docker images and commands. Make sure you modify the `config.yml` if you are using custom docker images and commands
 
     ```sh
     bash scripts/build_docker.sh
