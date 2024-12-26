@@ -102,18 +102,18 @@ func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, err
 		Privileged: false,
 		// Set the memory limit to 1GB
 		Resources: container.Resources{
-			// set 100 MB as the memory limit in bytes
-			Memory: 100 * 1024 * 1024,
+			// set 500 MB as the memory limit in bytes
+			Memory: 500 * 1024 * 1024,
 			Ulimits: []*units.Ulimit{
 				{
 					Name: "nproc",
-					Soft: 32,
-					Hard: 32,
+					Soft: 64,
+					Hard: 128,
 				},
 				{
 					Name: "nofile",
-					Soft: 32,
-					Hard: 32,
+					Soft: 64,
+					Hard: 128,
 				},
 				{
 					Name: "core",

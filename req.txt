@@ -3,3 +3,11 @@ curl http://localhost:9000/api/v1/submit \
     --header "Content-Type: application/json" \
     --request "POST" \
     --data '{"code": "I2luY2x1ZGUgPGlvc3RyZWFtPgojaW5jbHVkZSA8c3RyaW5nPgoKaW50IG1haW4oKSB7CiAgICAvLyBEZWNsYXJlIGEgc3RyaW5nIHZhcmlhYmxlIHRvIGhvbGQgdGhlIHVzZXIgaW5wdXQKICAgIHN0ZDo6c3RyaW5nIHVzZXJJbnB1dDsKCiAgICAvLyBUYWtlIGlucHV0IGZyb20gdGhlIHVzZXIKICAgIHN0ZDo6Z2V0bGluZShzdGQ6OmNpbiwgdXNlcklucHV0KTsKCiAgICAvLyBPdXRwdXQgdGhlIHN0cmluZyBlbnRlcmVkIGJ5IHRoZSB1c2VyCiAgICBzdGQ6OmNvdXQgPDwgIllvdSBlbnRlcmVkOiAiIDw8IHVzZXJJbnB1dCA8PCBzdGQ6OmVuZGw7CgogICAgcmV0dXJuIDA7Cn0K", "input": "c3J1amFu","language": "cpp"}'
+
+
+curl http://localhost:9000/api/v1/submit \
+    --include \
+    --header "Content-Type: application/json" \
+    --request "POST" \
+    --data '{"input": "Zm9v", "code": "cGFja2FnZSBtYWluCgppbXBvcnQgKAoJImZtdCIKKQoKZnVuYyBtYWluKCkgewoJLy8gUHJvbXB0IHRoZSB1c2VyIGZvciBpbnB1dAoJZm10LlByaW50KCJFbnRlciBzb21ldGhpbmc6ICIpCgoJLy8gUmVhZCBpbnB1dCBmcm9tIHRoZSB1c2VyCgl2YXIgaW5wdXQgc3RyaW5nCglmbXQuU2NhbmxuKCZpbnB1dCkKCgkvLyBQcmludCB0aGUgaW5wdXQgd2l0aCBhIG1lc3NhZ2UKCWZtdC5QcmludGxuKCJZb3UgZW50ZXJlZDoiLCBpbnB1dCkKfQo=","language": "golang"}'
+
