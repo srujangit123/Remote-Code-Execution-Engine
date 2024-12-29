@@ -89,6 +89,10 @@ To start the server, run the following command:
 
 ## API
 
+### Supported Languages
+- URL: `/api/v1/languages`
+- Method: `GET`
+
 ### Submit Code
 - URL: `/api/v1/submit`
 - Method: `POST`
