@@ -53,6 +53,14 @@ func (c *ImageConfig) IsLanguageSupported(lang Language) bool {
 	return ok
 }
 
+func (c *ImageConfig) GetSupportedLanguages() []Language {
+	var languages []Language
+	for lang := range *c {
+		languages = append(languages, lang)
+	}
+	return languages
+}
+
 func GetHostLanguageCodePath(lang Language) string {
 	return filepath.Join(BaseCodePath, string(lang))
 }

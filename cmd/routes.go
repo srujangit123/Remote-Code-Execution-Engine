@@ -51,4 +51,10 @@ func RegisterRoutes(r *gin.Engine, client codecontainer.ContainerClient, config 
 			Output: output,
 		})
 	})
+
+	r.GET("/api/v1/languages", func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{
+			"languages": config.GetSupportedLanguages(),
+		})
+	})
 }
