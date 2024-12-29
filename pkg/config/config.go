@@ -54,7 +54,7 @@ func (c *ImageConfig) IsLanguageSupported(lang Language) bool {
 }
 
 func (c *ImageConfig) GetSupportedLanguages() []Language {
-	var languages []Language
+	languages := make([]Language, 0, len(*c))
 	for lang := range *c {
 		languages = append(languages, lang)
 	}
