@@ -22,7 +22,7 @@ func init() {
 	logger, _ = zap.NewProduction()
 }
 
-func StartServer(cli codecontainer.ContainerClient, config *config.ImageConfig) error {
+func StartServer(cli codecontainer.ContainerClient, config *config.Config) error {
 	r := gin.Default()
 	logger.Info("starting the server",
 		zap.String("Address", ADDR),
@@ -39,8 +39,8 @@ func StartServer(cli codecontainer.ContainerClient, config *config.ImageConfig) 
 	return server.ListenAndServe()
 }
 
-func setupCodeDirectory(imageConfig config.ImageConfig) {
-	for lang := range imageConfig {
+func setupCodeDirectory(imageConfig *config.Config) {
+	for lang := range imageConfig.Languages {
 		path := config.GetHostLanguageCodePath(lang)
 		if err := os.MkdirAll(path, 0755); err != nil {
 			logger.Error("failed to create the code directory for the language",
@@ -58,15 +58,11 @@ func main() {
 		_ = logger.Sync()
 	}()
 
-	ParseFlags()
+	configFilePath := ParseFlags()
 
-	// This should be given as a command line argument.
-	imageConfig, err := config.LoadConfig("../config.yml")
+	imageConfig, err := config.LoadConfig(configFilePath)
 	if err != nil {
-		logger.Error("failed to load the config file",
-			zap.Error(err),
-		)
-		panic(err)
+		logger.Fatal("failed to load the config file", zap.Error(err))
 	}
 
 	setupCodeDirectory(*imageConfig)
@@ -77,29 +73,19 @@ func main() {
 
 	cli, err := codecontainer.NewDockerClient(nil, logger)
 	if err != nil {
-		logger.Error("failed to create a docker client",
-			zap.Error(err),
-		)
-		panic(err)
+		logger.Fatal("failed to create a docker client", zap.Error(err))
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	go func() {
-		err = cli.FreeUpZombieContainers(ctx)
-		if err != nil {
-			logger.Error("failed to free up zombie containers",
-				zap.Error(err),
-			)
+		if err := cli.FreeUpZombieContainers(ctx); err != nil {
+			logger.Error("failed to free up zombie containers", zap.Error(err))
 		}
 	}()
 
-	err = StartServer(cli, imageConfig)
-	if err != nil {
-		logger.Error("failed to start the server",
-			zap.Error(err),
-		)
-		cancel()
-		panic(err)
+	if err := StartServer(cli, imageConfig); err != nil {
+		logger.Fatal("failed to start the server", zap.Error(err))
 	}
 }

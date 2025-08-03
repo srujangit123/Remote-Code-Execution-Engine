@@ -1,65 +1,18 @@
-#!/bin/sh
+#!/bin/bash
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <language> <source_file_path> <input_file_path>"
+LANGUAGE=$1
+FILE=$2
+INPUT=$3
+
+case $LANGUAGE in
+  "cpp")
+    g++ -o /tmp/code $FILE && /tmp/code < $INPUT
+    ;;
+  "golang")
+    go run $FILE < $INPUT
+    ;;
+  *)
+    echo "Unsupported language"
     exit 1
-fi
-
-language="$1"
-source_file="$2"
-input_file="$3"
-
-if [ ! -f "$source_file" ]; then
-    echo "Error: Source file '$source_file' does not exist!" >&2
-    exit 1
-fi
-
-if [ ! -f "$input_file" ]; then
-    echo "Error: Input file '$input_file' does not exist!" >&2
-    exit 1
-fi
-
-# C++ function to compile and run the program
-run_cpp() {
-    executable="a.out"
-
-    # Compile the C++ program and direct any errors to stderr
-    g++ "$source_file" -o "$executable" 2>&1
-    if [ $? -ne 0 ]; then
-        echo "Compilation failed. Please check the error messages above." >&2
-        exit 1
-    fi
-
-    # Run the compiled executable, redirecting both stdout and stderr to the terminal
-    ./$executable < "$input_file" 2>&1
-
-    if [ $? -ne 0 ]; then
-        echo "Runtime error occurred. Check the output above for details." >&2
-    fi
-
-    # Clean up the executable
-    rm "$executable"
-}
-
-# Go function to run the program
-run_go() {
-    # Run the Go program and capture both stdout and stderr
-    go run "$source_file" < "$input_file" 2>&1
-    if [ $? -ne 0 ]; then
-        echo "Runtime error occurred while running the Go program." >&2
-    fi
-}
-
-# Check the programming language and call the appropriate function
-case "$language" in
-    cpp)
-        run_cpp
-        ;;
-    golang)
-        run_go
-        ;;
-    *)
-        echo "Error: Unsupported language '$language'. Please use 'cpp' or 'go'." >&2
-        exit 1
-        ;;
+    ;;
 esac

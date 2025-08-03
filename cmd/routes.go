@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func RegisterRoutes(r *gin.Engine, client codecontainer.ContainerClient, config *config.ImageConfig) {
+func RegisterRoutes(r *gin.Engine, client codecontainer.ContainerClient, config *config.Config) {
 	r.POST("/api/v1/submit", func(ctx *gin.Context) {
 		var req Request
 		if err := ctx.BindJSON(&req); err != nil {
@@ -40,7 +40,7 @@ func RegisterRoutes(r *gin.Engine, client codecontainer.ContainerClient, config 
 			zap.Any("Language", code.Language),
 		)
 
-		output, err := client.ExecuteCode(ctx, code)
+		output, err := client.ExecuteCode(ctx, code, config)
 		if err != nil {
 			logger.Error("Error executing code", zap.Error(err))
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to execute code"})

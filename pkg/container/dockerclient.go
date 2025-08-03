@@ -66,32 +66,32 @@ func (d *dockerClient) GetContainers(ctx context.Context, opts *container.ListOp
 	return containersList, nil
 }
 
-func (d *dockerClient) getResourceConstraints() container.Resources {
+func (d *dockerClient) getResourceConstraints(cfg *config.Config) container.Resources {
 	if config.IsResourceConstraintsEnabled() {
 		return container.Resources{
-			Memory:   500 * 1024 * 1024, // 500 MB
-			NanoCPUs: 1000000000,        // 1 CPU
+			Memory:   cfg.Resources.Memory,
+			NanoCPUs: cfg.Resources.NanoCPUs,
 			Ulimits: []*units.Ulimit{
 				{
 					Name: "nproc",
-					Soft: 64,
-					Hard: 128,
+					Soft: cfg.Resources.Nproc,
+					Hard: cfg.Resources.Nproc * 2,
 				},
 				{
 					Name: "nofile",
-					Soft: 64,
-					Hard: 128,
+					Soft: cfg.Resources.Nofile,
+					Hard: cfg.Resources.Nofile * 2,
 				},
 				{
 					Name: "core",
-					Soft: 0,
-					Hard: 0,
+					Soft: cfg.Resources.Core,
+					Hard: cfg.Resources.Core,
 				},
 				{
 					// Maximum file size that can be created by the process (output file in our case)
 					Name: "fsize",
-					Soft: 20 * 1024 * 1024,
-					Hard: 20 * 1024 * 1024,
+					Soft: cfg.Resources.Fsize,
+					Hard: cfg.Resources.Fsize,
 				},
 			},
 		}
@@ -99,7 +99,7 @@ func (d *dockerClient) getResourceConstraints() container.Resources {
 	return container.Resources{}
 }
 
-func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, error) {
+func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code, cfg *config.Config) (string, error) {
 	codeFileName, inputFileName, err := createCodeAndInputFilesHost(code, d.logger)
 	if err != nil {
 		return "", fmt.Errorf("failed to create code and input files: %w", err)
@@ -109,7 +109,7 @@ func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, err
 		zap.String("input file name", inputFileName),
 	)
 
-	resourceConstraints := d.getResourceConstraints()
+	resourceConstraints := d.getResourceConstraints(cfg)
 
 	res, err := d.client.ContainerCreate(ctx, &container.Config{
 		Cmd:   getContainerCommand(code, codeFileName, inputFileName),
@@ -147,11 +147,11 @@ func (d *dockerClient) ExecuteCode(ctx context.Context, code *Code) (string, err
 
 	d.logger.Info("container started, waiting for the container to exit")
 	statusCh, errCh := d.client.ContainerWait(ctx, res.ID, container.WaitConditionNotRunning)
-	ticker := time.NewTicker(MAX_EXECUTION_TIME)
+	ticker := time.NewTicker(time.Duration(cfg.Resources.Timeout) * time.Second)
 
 	select {
 	case <-ticker.C:
-		d.logger.Info("container has been running for more than 60 seconds, killing the container",
+		d.logger.Info("container has been running for more than the specified timeout, killing the container",
 			zap.String("container ID", res.ID),
 		)
 		if err := d.client.ContainerKill(ctx, res.ID, "KILL"); err != nil {
@@ -271,7 +271,7 @@ func getContainerCommand(code *Code, codeFileName, inputFileName string) []strin
 	command = strings.Replace(command, "{{FILE}}", codeFilePath, -1)
 	command = strings.Replace(command, "{{INPUT}}", inputFilePath, -1)
 
-	fmt.Println("Command to be executed:", command)
+	d.logger.Info("Command to be executed:", zap.String("command", command))
 
 	return []string{
 		"sh", "-c",

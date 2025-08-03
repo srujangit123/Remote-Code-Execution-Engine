@@ -6,3 +6,12 @@ golang:
   extension: ".go"
   image: "golang_arm64:latest"
   command: "/usr/bin/run-code.sh {{LANGUAGE}} {{FILE}} {{INPUT}}"
+
+resources:
+  memory: 524288000 # 500 MB
+  nanocpus: 1000000000 # 1 CPU
+  nproc: 64
+  nofile: 64
+  fsize: 20971520 # 20 MB
+  core: 0
+  timeout: 60

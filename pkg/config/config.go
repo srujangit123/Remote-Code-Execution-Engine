@@ -27,15 +27,28 @@ type LanguageConfig struct {
 	Command   string `yaml:"command"`
 }
 
-type ImageConfig map[Language]LanguageConfig
+type ResourceConfig struct {
+	Memory    int64  `yaml:"memory"`
+	NanoCPUs  int64  `yaml:"nanocpus"`
+	Nproc     int64  `yaml:"nproc"`
+	Nofile    int64  `yaml:"nofile"`
+	Fsize     int64  `yaml:"fsize"`
+	Core      int64  `yaml:"core"`
+	Timeout   int64  `yaml:"timeout"`
+}
 
-func LoadConfig(configPath string) (*ImageConfig, error) {
+type Config struct {
+	Languages map[Language]LanguageConfig `yaml:",inline"`
+	Resources ResourceConfig             `yaml:"resources"`
+}
+
+func LoadConfig(configPath string) (*Config, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the config file: %w", err)
 	}
 
-	var config ImageConfig
+	var config Config
 	err = yaml.Unmarshal(data, &config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal the config file: %w", err)
@@ -44,18 +57,23 @@ func LoadConfig(configPath string) (*ImageConfig, error) {
 	return &config, nil
 }
 
-func (c *ImageConfig) GetLanguageConfig(lang Language) LanguageConfig {
-	return (*c)[lang]
+func (c *Config) GetLanguageConfig(lang Language) LanguageConfig {
+	langConfig := c.Languages[lang]
+	envImage := os.Getenv(fmt.Sprintf("%s_IMAGE", lang))
+	if envImage != "" {
+		langConfig.Image = envImage
+	}
+	return langConfig
 }
 
-func (c *ImageConfig) IsLanguageSupported(lang Language) bool {
-	_, ok := (*c)[lang]
+func (c *Config) IsLanguageSupported(lang Language) bool {
+	_, ok := c.Languages[lang]
 	return ok
 }
 
-func (c *ImageConfig) GetSupportedLanguages() []Language {
-	languages := make([]Language, 0, len(*c))
-	for lang := range *c {
+func (c *Config) GetSupportedLanguages() []Language {
+	languages := make([]Language, 0, len(c.Languages))
+	for lang := range c.Languages {
 		languages = append(languages, lang)
 	}
 	return languages
